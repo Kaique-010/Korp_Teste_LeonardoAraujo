@@ -31,6 +31,12 @@ type BaixaConsumer interface {
 	Close() error
 }
 
+type ChannelGetter func() *amqp.Channel
+
+type ResultadoBaixaPublisher interface {
+	PublicarResultado(resultado messaging.BaixaResultado) error
+}
+
 type baixaConsumer struct {
 	getChannel ChannelGetter
 	movimentos MovimentoService
@@ -167,9 +173,9 @@ func (c *baixaConsumer) desistir(msg amqp.Delivery, causa error) {
 		})
 	}
 	logging.Error("baixa: desistindo da mensagem após tentativas, enviada para DLQ", map[string]any{
-		"max":   maxTentativas,
-		"erro":  causa.Error(),
-		"nota":  notaIDDaMensagem(msg.Body),
+		"max":  maxTentativas,
+		"erro": causa.Error(),
+		"nota": notaIDDaMensagem(msg.Body),
 	})
 	_ = msg.Nack(false, false) // sem requeue → x-dead-letter → DLQ
 }
@@ -200,8 +206,8 @@ func (c *baixaConsumer) tratarMensagem(body []byte) (*messaging.BaixaResultado, 
 			if errors.As(err, &appErr) {
 				if appErr.Code == apperrors.CodeDuplicado {
 					logging.Info("baixa: item já baixado (idempotente), ignorado", map[string]any{
-						"nota":     solicitada.NotaID,
-						"produto":  item.ProdutoID,
+						"nota":    solicitada.NotaID,
+						"produto": item.ProdutoID,
 					})
 					continue
 				}

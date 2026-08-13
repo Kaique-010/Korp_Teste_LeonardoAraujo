@@ -168,17 +168,18 @@ func (c *resultadoBaixaConsumer) processarComRetry(ctx context.Context, msg amqp
 			return
 		}
 
-		logging.Warn("resultado baixa tentativa falhou",
-			"tentativa", tentativa,
-			"max", maxTentativasRes,
-			"nota_id", extrairNotaID(msg.Body),
-			"err", err)
+		logging.Warn("resultado baixa tentativa falhou", map[string]any{
+			"tentativa": tentativa,
+			"max":       maxTentativasRes,
+			"nota_id":   extrairNotaID(msg.Body),
+			"err":       err,
+		})
 
 		if tentativa >= maxTentativasRes {
-			// Estourou retries: NACK sem requeue → DLQ
-			logging.Error("resultado baixa estourou retries → enviando para DLQ",
-				"nota_id", extrairNotaID(msg.Body),
-				"err", err)
+			logging.Error("resultado baixa estourou retries → enviando para DLQ", map[string]any{
+				"nota_id": extrairNotaID(msg.Body),
+				"err":     err,
+			})
 			_ = msg.Nack(false, false)
 			return
 		}
@@ -208,15 +209,16 @@ func (c *resultadoBaixaConsumer) processar(msg amqp.Delivery) error {
 	if err != nil {
 		// Mapeamento semântico: service retorna apperrors com tipo + msg;
 		// nós elevamos os sentinelas para o loop não retentar.
-		var ce *apperrors.ConflictError
+		var ce *apperrors.AppError
 		if errors.As(err, &ce) && ce.Code == "NOTA_JA_FECHADA" {
 			return errIDempotente
 		}
 		return err
 	}
-	logging.Info("resultado baixa processado",
-		"nota_id", res.NotaID,
-		"tipo", res.Tipo)
+	logging.Info("resultado baixa processado", map[string]any{
+		"nota_id": res.NotaID,
+		"tipo":    res.Tipo,
+	})
 	return nil
 }
 
