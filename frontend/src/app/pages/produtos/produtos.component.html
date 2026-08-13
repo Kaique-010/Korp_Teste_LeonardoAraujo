@@ -1,0 +1,78 @@
+<div class="cabecalho">
+  <h2>Produtos</h2>
+  <button mat-flat-button color="primary" (click)="abrirCriar()">
+    <mat-icon>add</mat-icon>
+    Novo produto
+  </button>
+</div>
+
+@if (carregando()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+@if (!carregando() && produtos().length === 0) {
+  <p class="vazio">Nenhum produto cadastrado. Clique em "Novo produto" para começar.</p>
+}
+
+@if (produtos().length > 0) {
+  <div class="tabela">
+    <table mat-table [dataSource]="produtos()">
+      <ng-container matColumnDef="codigo">
+        <th mat-header-cell *matHeaderCellDef>Código</th>
+        <td mat-cell *matCellDef="let p">{{ p.codigo }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="descricao">
+        <th mat-header-cell *matHeaderCellDef>Descrição</th>
+        <td mat-cell *matCellDef="let p">{{ p.descricao }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="saldo">
+        <th mat-header-cell *matHeaderCellDef>Saldo</th>
+        <td mat-cell *matCellDef="let p">{{ p.saldo }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="preco_vista">
+        <th mat-header-cell *matHeaderCellDef>Preço à vista</th>
+        <td mat-cell *matCellDef="let p">
+          @if (p.preco_atual?.preco_vista ?? null !== null) {
+            R$ {{ p.preco_atual?.preco_vista | number: '1.2-2' }}
+          } @else {
+            —
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="preco_prazo">
+        <th mat-header-cell *matHeaderCellDef>Preço a prazo</th>
+        <td mat-cell *matCellDef="let p">
+          @if (p.preco_atual?.preco_prazo ?? null !== null) {
+            R$ {{ p.preco_atual?.preco_prazo | number: '1.2-2' }}
+          } @else {
+            —
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="atualizado_em">
+        <th mat-header-cell *matHeaderCellDef>Atualizado em</th>
+        <td mat-cell *matCellDef="let p">{{ p.atualizado_em | date: 'dd/MM/yyyy HH:mm' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="acoes">
+        <th mat-header-cell *matHeaderCellDef>Ações</th>
+        <td mat-cell *matCellDef="let p">
+          <button mat-icon-button color="primary" (click)="abrirEditar(p)" matTooltip="Editar">
+            <mat-icon>edit</mat-icon>
+          </button>
+          <button mat-icon-button color="warn" (click)="excluir(p)" matTooltip="Excluir">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="colunas"></tr>
+      <tr mat-row *matRowDef="let row; columns: colunas"></tr>
+    </table>
+  </div>
+}

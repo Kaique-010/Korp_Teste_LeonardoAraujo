@@ -1,0 +1,22 @@
+:host {
+  display: block;
+}
+
+.cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.vazio {
+  text-align: center;
+  padding: 40px 16px;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.tabela {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}

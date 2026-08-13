@@ -1,0 +1,46 @@
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+bin/
+vendor/
+dist/
+coverage.*
+
+# Node / Angular
+node_modules/
+dist/
+out/
+*.log
+.angular/cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Ambiente
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# SO
+.DS_Store
+Thumbs.db
+
+# Docker
+*.pid
+
+/docs/commits.md
+/docs/guia-sprint7-mensageria.md
+/docs/reescrever-historico.ps1
+/docs/reescrever-historico.sh
+/docs/_build_repair.ps1
+
+

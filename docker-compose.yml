@@ -1,0 +1,55 @@
+name: korp-teste
+
+services:
+  postgres-estoque:
+    image: postgres:16-alpine
+    container_name: korp-postgres-estoque
+    environment:
+      POSTGRES_USER: estoque
+      POSTGRES_PASSWORD: estoque
+      POSTGRES_DB: estoque_db
+    ports:
+      - "15432:5432"
+    volumes:
+      - pg_estoque_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U estoque -d estoque_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres-faturamento:
+    image: postgres:16-alpine
+    container_name: korp-postgres-faturamento
+    environment:
+      POSTGRES_USER: faturamento
+      POSTGRES_PASSWORD: faturamento
+      POSTGRES_DB: faturamento_db
+    ports:
+      - "15433:5432"
+    volumes:
+      - pg_faturamento_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U faturamento -d faturamento_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: korp-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: korp
+      RABBITMQ_DEFAULT_PASS: korp
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pg_estoque_data:
+  pg_faturamento_data:

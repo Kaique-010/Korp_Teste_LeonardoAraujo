@@ -1,0 +1,54 @@
+<mat-toolbar color="primary" class="barra">
+  <div class="barra-inner">
+    <button mat-icon-button routerLink="/" matTooltip="Página inicial" aria-label="Ir para home">
+      <mat-icon>home</mat-icon>
+    </button>
+
+    <span class="titulo" routerLink="/" tabindex="0" role="link" aria-label="Voltar para home">Korp — Notas Fiscais</span>
+
+    @if (!mobile()) {
+      <nav class="navegacao" aria-label="Navegação principal">
+        @for (item of itens; track item.rota) {
+          <a
+            mat-button
+            [routerLink]="item.rota"
+            routerLinkActive="ativo"
+            [routerLinkActiveOptions]="item.exact ? { exact: true } : {}"
+            [matTooltip]="item.rotulo"
+          >
+            <mat-icon>{{ item.icone }}</mat-icon>
+            {{ item.rotulo }}
+          </a>
+        }
+      </nav>
+      <div class="spacer"></div>
+    } @else {
+      <div class="spacer"></div>
+      <button
+        mat-icon-button
+        [matMenuTriggerFor]="menuPrincipal"
+        matTooltip="Abrir menu"
+        aria-label="Abrir menu principal"
+      >
+        <mat-icon>menu</mat-icon>
+      </button>
+      <mat-menu #menuPrincipal="matMenu" xPosition="before">
+        @for (item of itens; track item.rota) {
+          <a
+            mat-menu-item
+            [routerLink]="item.rota"
+            routerLinkActive="ativo"
+            [routerLinkActiveOptions]="item.exact ? { exact: true } : {}"
+          >
+            <mat-icon>{{ item.icone }}</mat-icon>
+            <span>{{ item.rotulo }}</span>
+          </a>
+        }
+      </mat-menu>
+    }
+
+    <div class="header-acoes">
+      <app-theme-toggle />
+    </div>
+  </div>
+</mat-toolbar>

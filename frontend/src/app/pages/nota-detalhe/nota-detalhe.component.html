@@ -1,0 +1,148 @@
+<div class="voltar">
+  <a mat-stroked-button routerLink="/notas">
+    <mat-icon>arrow_back</mat-icon>
+    Voltar
+  </a>
+</div>
+
+@if (carregando()) {
+<mat-progress-bar mode="indeterminate" />
+}
+
+@if (nota(); as nota) {
+<mat-card>
+  <mat-card-header>
+    <mat-card-title>
+      Nota fiscal {{ nota.numero }} (ID {{ nota.id }})
+    </mat-card-title>
+    <mat-card-subtitle>
+      <div class="subtitulo-linha">
+        Status:
+        <strong class="status status-{{ nota.status | lowercase }}">{{ nota.status }}</strong>
+        &nbsp;·&nbsp; Criada em {{ nota.criado_em | date: 'dd/MM/yyyy HH:mm' }}
+        @if (nota.fechado_em) {
+        &nbsp;·&nbsp; Fechada em {{ nota.fechado_em | date: 'dd/MM/yyyy HH:mm' }}
+        }
+      </div>
+      <div class="cliente">
+        @if (nota.cliente?.nome) {
+        <mat-chip-row disabled highlighted="true" color="primary">
+          <mat-icon>person</mat-icon>
+          {{ nota.cliente?.nome }}
+        </mat-chip-row>
+        } @else {
+        <span class="sem-cliente">Sem cliente vinculado</span>
+        }
+      </div>
+    </mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    <div class="acoes">
+      <button mat-flat-button color="primary" [disabled]="!podeEditar || imprimindo()" (click)="adicionarItem()">
+        <mat-icon>add</mat-icon>
+        Adicionar item
+      </button>
+      <button mat-flat-button color="accent" [disabled]="nota.status !== 'ABERTA' || imprimindo()" (click)="imprimir()">
+        @if (imprimindo()) {
+        <mat-progress-spinner diameter="18" mode="indeterminate" />
+        }
+        <mat-icon>print</mat-icon>
+        Imprimir e solicitar baixa
+      </button>
+    </div>
+
+    @if ((nota.itens?.length ?? 0) === 0) {
+    <p class="vazio">Nenhum item nesta nota ainda.</p>
+    }
+
+    @if (nota.itens && nota.itens.length > 0) {
+    <div class="tabela">
+      <table mat-table [dataSource]="nota.itens">
+        <ng-container matColumnDef="codigo_produto">
+          <th mat-header-cell *matHeaderCellDef>Código</th>
+          <td mat-cell *matCellDef="let item">{{ item.codigo_produto }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="descricao_produto">
+          <th mat-header-cell *matHeaderCellDef>Produto</th>
+          <td mat-cell *matCellDef="let item">{{ item.descricao_produto }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="quantidade">
+          <th mat-header-cell *matHeaderCellDef>Qtd</th>
+          <td mat-cell *matCellDef="let item">{{ item.quantidade }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="valor_unitario">
+          <th mat-header-cell *matHeaderCellDef>V. unit.</th>
+          <td mat-cell *matCellDef="let item">R$ {{ item.valor_unitario | number: '1.2-2' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="preco_vista">
+          <th mat-header-cell *matHeaderCellDef>Preço à vista</th>
+          <td mat-cell *matCellDef="let item">
+            @if (item.preco_vista !== undefined && item.preco_vista !== null) {
+            R$ {{ item.preco_vista | number: '1.2-2' }}
+            } @else { — }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="preco_prazo">
+          <th mat-header-cell *matHeaderCellDef>Preço a prazo</th>
+          <td mat-cell *matCellDef="let item">
+            @if (item.preco_prazo !== undefined && item.preco_prazo !== null) {
+            R$ {{ item.preco_prazo | number: '1.2-2' }}
+            } @else { — }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="desconto">
+          <th mat-header-cell *matHeaderCellDef>Desc.</th>
+          <td mat-cell *matCellDef="let item">{{ item.desconto }}%</td>
+        </ng-container>
+
+        <ng-container matColumnDef="total">
+          <th mat-header-cell *matHeaderCellDef>Total</th>
+          <td mat-cell *matCellDef="let item">R$ {{ item.total | number: '1.2-2' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="acoes">
+          <th mat-header-cell *matHeaderCellDef>Ações</th>
+          <td mat-cell *matCellDef="let item">
+            @if (podeEditar) {
+            <button mat-icon-button color="warn" (click)="removerItem(item.id, item.descricao_produto)">
+              <mat-icon>delete</mat-icon>
+            </button>
+            }
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="colunasItens"></tr>
+        <tr mat-row *matRowDef="let row; columns: colunasItens"></tr>
+      </table>
+    </div>
+
+    <div class="rodape-tabela">
+      <strong>Total da nota: R$ {{ totalItens | number: '1.2-2' }}</strong>
+    </div>
+    }
+
+    <mat-divider class="divisor" />
+
+    <h3>Eventos</h3>
+    @if (eventos().length === 0) {
+    <p class="vazio">Nenhum evento registrado.</p>
+    }
+    <ul class="eventos">
+      @for (evento of eventos(); track evento.id) {
+      <li>
+        <span class="tipo">{{ evento.tipo }}</span>
+        <span>{{ evento.descricao }}</span>
+        <span class="quando">{{ evento.criado_em | date: 'dd/MM/yyyy HH:mm:ss' }}</span>
+      </li>
+      }
+    </ul>
+  </mat-card-content>
+</mat-card>
+}

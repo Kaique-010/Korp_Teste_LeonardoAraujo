@@ -1,0 +1,14 @@
+.cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.vazio {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.tabela {
+  margin-top: 16px;
+}
