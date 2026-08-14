@@ -124,14 +124,11 @@ funcionam com o `docker-compose.yml` local).
 
 ## 3. Arquitetura (3 camadas padrão)
 
-| Camada        | Responsabilidade                                                                    |
-| ------------- | ----------------------------------------------------------------------------------- |
-| **Handlers**  | Gin: valida entrada, monta status HTTP, formata erro padrão. **Zero regra.**        |
-| **Services**  | Regras de negócio (transações GORM, idempotência, integrações HTTP/Rabbit, retry).  |
-| **Repos**     | Acesso a dados via GORM + interfaces (mockável em testes SQLite memória).           |
-
-**Testes:** repos e services rodam em `SQLite` em memória com `GORM.Open(sqlite.Open(":memory:"))`
-→ testes rápidos, sem dependência externa (80% de cobertura nas regras principais).
+| Camada       | Responsabilidade                                                                   |
+| ------------ | ---------------------------------------------------------------------------------- |
+| **Handlers** | Gin: valida entrada, monta status HTTP, formata erro padrão. **Zero regra.**       |
+| **Services** | Regras de negócio (transações GORM, idempotência, integrações HTTP/Rabbit, retry). |
+| **Repos**    | Acesso a dados via GORM + interfaces (mockável em testes SQLite memória).          |
 
 ---
 
@@ -219,20 +216,17 @@ GET    /                       # HATEOAS: links para clientes + notas + imprimir
 
 ---
 
-## 6. Impressão (fluxo assíncrono completo — RabbitMQ, 7 etapas Sprint 7)
+## 6. Impressão (fluxo assíncrono completo — RabbitMQ, etapas Sprint 7)
 
-> Antes havia um fluxo síncrono (§15 SDD), hoje o padrão é o **assíncrono** (mais resiliente,
-> retorno 202 + audit trail por eventos JSONB).
-
-| Etapa | O que acontece                                                                                    |
-| :---: | ------------------------------------------------------------------------------------------------- |
-|  1/7  | `POST /notas/:id/imprimir` recebe a requisição → **202 Accepted**                                 |
-|  2/7  | Faturamento publica **`BaixaSolicitada`** na exchange `korp.direct` routing-key `korp.baixa`      |
-|  3/7  | Estoque consome `korp.baixa` (prefetch 1, `autoAck=false`)                                        |
-|  4/7  | Estoque executa a baixa (transação `FOR UPDATE`, saldo>0 → insere movimento)                      |
-|  5/7  | Estoque publica **`ResultadoBaixa`** (APROVADO / NEGADO / INDISPONIVEL) em `korp.resultado`       |
+| Etapa | O que acontece                                                                                      |
+| :---: | --------------------------------------------------------------------------------------------------- |
+|  1/7  | `POST /notas/:id/imprimir` recebe a requisição → **202 Accepted**                                   |
+|  2/7  | Faturamento publica **`BaixaSolicitada`** na exchange `korp.direct` routing-key `korp.baixa`        |
+|  3/7  | Estoque consome `korp.baixa` (prefetch 1, `autoAck=false`)                                          |
+|  4/7  | Estoque executa a baixa (transação `FOR UPDATE`, saldo>0 → insere movimento)                        |
+|  5/7  | Estoque publica **`ResultadoBaixa`** (APROVADO / NEGADO / INDISPONIVEL) em `korp.resultado`         |
 |  6/7  | Faturamento consome `korp.resultado` + **fecha a nota idempotentemente** (só muda FECHAR se ABERTA) |
-|  7/7  | Em caso de erro: retry 2s → 4s → 8s → 16s → 30s → DLX → DLQ auditoria `korp.*.dlq`                |
+|  7/7  | Em caso de erro: retry 2s → 4s → 8s → 16s → 30s → DLX → DLQ auditoria `korp.*.dlq`                  |
 
 **Idempotência (Sprint 8):** a mesma nota enviada 2x para imprimir → 2 redeliveries da
 `ResultadoBaixa` → o service verifica: `if nota.Status == FECHADA => Ack sem side effect`.
@@ -256,24 +250,24 @@ DB_PASS / RABBITMQ_URL / LOG_LEVEL (info|debug) / SERVICE_NAME / VERSION`.
 
 ## 8. Frontend Angular 19 (Sprints 10 + 11 UX + UTF-8)
 
-| Feature | Onde |
-| --- | --- |
-| **Scaffold standalone + Material + proxy** | `app.config.ts` (provideHttpClient, provideAnimations); `proxy.conf.json` → `/api/estoque/*` porta 8081, `/api/faturamento/*` 8082. |
-| **HomePage (cards)** | `pages/home` — 4 cards: Produtos / Clientes / Notas Abertas / Eventos de auditoria. |
-| **Header responsivo** | `components/app-header` — hambúrguer em telas <820px. Nav: Home / Produtos / Clientes / Notas + ThemeToggle. |
-| **Tema Light/Dark** | `services/theme.service.ts` (Signal + `Renderer2` + `localStorage`). Troca atributo `data-theme` em `<body>` + CSS vars. Toggle em `components/theme-toggle`. |
-| **CRUD Produtos** | `pages/produtos` + `components/produto-form-dialog`: **toggle tipo preço (Vista / Prazo / Ambos)** + campo `Código PROD-XXXXXX` automático. |
-| **CRUD Clientes** | `pages/clientes` + `components/cliente-form-dialog`: apenas `nome`. 409 exclusão se notas vinculadas. |
-| **CRUD Notas** | `pages/notas` (listagem com número, cliente, status); `pages/nota-detalhe` com 3 abas: Itens / Eventos JSONB / Imprimir 202. |
-| **Item Nota auto-preenche** | `components/item-form-dialog`: **toggle (Vista / Prazo / Manual)** — busca preço vigente do produto se Vista/Prazo. |
-| **UTF-8 em toda a stack** | Go middlewares adicionam `Content-Type: application/json; charset=utf-8`; `index.html` com `<html lang="pt-BR">` e `<meta charset="UTF-8">`. |
-| **Builds validados** | `ng build` OK, budgets ajustados em `angular.json` (não avisa warning de initial 2MB). |
+| Feature                                    | Onde                                                                                                                                                          |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Scaffold standalone + Material + proxy** | `app.config.ts` (provideHttpClient, provideAnimations); `proxy.conf.json` → `/api/estoque/*` porta 8081, `/api/faturamento/*` 8082.                           |
+| **HomePage (cards)**                       | `pages/home` — 4 cards: Produtos / Clientes / Notas Abertas / Eventos de auditoria.                                                                           |
+| **Header responsivo**                      | `components/app-header` — hambúrguer em telas <820px. Nav: Home / Produtos / Clientes / Notas + ThemeToggle.                                                  |
+| **Tema Light/Dark**                        | `services/theme.service.ts` (Signal + `Renderer2` + `localStorage`). Troca atributo `data-theme` em `<body>` + CSS vars. Toggle em `components/theme-toggle`. |
+| **CRUD Produtos**                          | `pages/produtos` + `components/produto-form-dialog`: **toggle tipo preço (Vista / Prazo / Ambos)** + campo `Código PROD-XXXXXX` automático.                   |
+| **CRUD Clientes**                          | `pages/clientes` + `components/cliente-form-dialog`: apenas `nome`. 409 exclusão se notas vinculadas.                                                         |
+| **CRUD Notas**                             | `pages/notas` (listagem com número, cliente, status); `pages/nota-detalhe` com 3 abas: Itens / Eventos JSONB / Imprimir 202.                                  |
+| **Item Nota auto-preenche**                | `components/item-form-dialog`: **toggle (Vista / Prazo / Manual)** — busca preço vigente do produto se Vista/Prazo.                                           |
+| **UTF-8 em toda a stack**                  | Go middlewares adicionam `Content-Type: application/json; charset=utf-8`; `index.html` com `<html lang="pt-BR">` e `<meta charset="UTF-8">`.                  |
+| **Builds validados**                       | `ng build` OK, budgets ajustados em `angular.json` (não avisa warning de initial 2MB).                                                                        |
 
 ---
 
 ## 9. História de commits (40 passos, 11 Sprints)
 
-A história completa (mapa sprint × commit × hash curto × data × referência SDD § / Parte da
+A história completa (mapa sprint × commit × hash curto × data × referência SDD / Parte da
 arquitetura / Sprint do planejamento) está em:
 
 - **[docs/commits.md](file:///c:/Users/leoka/OneDrive/%C3%81rea%20de%20Trabalho/Korp_Teste_LeonardoAraujo/docs/commits.md)** — mapa oficial 40 commits
@@ -282,19 +276,12 @@ arquitetura / Sprint do planejamento) está em:
   material de cada etapa (1 arquivo criado em cada commit para forçar o diff e garantir que
   nenhum passo foi pulado).
 
-Scripts 100% reproduzíveis para recriar a história do zero em máquina nova:
-
-| SO | Script |
-| --- | --- |
-| Windows (PowerShell 5) | [docs/reescrever-historico.ps1](file:///c:/Users/leoka/OneDrive/%C3%81rea%20de%20Trabalho/Korp_Teste_LeonardoAraujo/docs/reescrever-historico.ps1) |
-| Linux / macOS / Git Bash | [docs/reescrever-historico.sh](file:///c:/Users/leoka/OneDrive/%C3%81rea%20de%20Trabalho/Korp_Teste_LeonardoAraujo/docs/reescrever-historico.sh) |
-
 ---
 
 ## 10. Referências dos 3 documentos que guiaram TUDO
 
-| Documento | Caminho | O que cobre |
-| --- | --- | --- |
-| **Especificação do teste (SDD)** | [sdd_teste.md](file:///c:/Users/leoka/OneDrive/%C3%81rea%20de%20Trabalho/Korp_Teste_LeonardoAraujo/sdd_teste.md) | 26 seções §1..§26 (objetivo → glossário). Obrigatoriedades do teste técnico. |
-| **Arquitetura** | [docs/arquitetura.md](file:///c:/Users/leoka/OneDrive/%C3%81rea%20de%20Trabalho/Korp_Teste_LeonardoAraujo/docs/arquitetura.md) | 12 Partes (fundação → UI + tema + header responsivo). |
-| **Planejamento 11 Sprints** | [docs/planejamento.md](file:///c:/Users/leoka/OneDrive/%C3%81rea%20de%20Trabalho/Korp_Teste_LeonardoAraujo/docs/planejamento.md) | S1..S11 com checklists de entrega por sprint. |
+| Documento                        | Caminho                                                                                                                          | O que cobre                                                                  |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **Especificação do teste (SDD)** | [sdd_teste.md](file:///c:/Users/leoka/OneDrive/%C3%81rea%20de%20Trabalho/Korp_Teste_LeonardoAraujo/sdd_teste.md)                 | 26 seções §1..§26 (objetivo → glossário). Obrigatoriedades do teste técnico. |
+| **Arquitetura**                  | [docs/arquitetura.md](file:///c:/Users/leoka/OneDrive/%C3%81rea%20de%20Trabalho/Korp_Teste_LeonardoAraujo/docs/arquitetura.md)   | 12 Partes (fundação → UI + tema + header responsivo).                        |
+| **Planejamento 11 Sprints**      | [docs/planejamento.md](file:///c:/Users/leoka/OneDrive/%C3%81rea%20de%20Trabalho/Korp_Teste_LeonardoAraujo/docs/planejamento.md) | S1..S11 com checklists de entrega por sprint.                                |

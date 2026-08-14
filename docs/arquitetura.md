@@ -6,7 +6,7 @@ Divisão lógica da SDD (`sdd_teste.md`) em módulos coesos para orientar a impl
 
 ## Parte 1 — Fundamentos do Sistema
 
-**Referência SDD:** §1, §2, §3, §26
+**Referência SDD:** 1, 2, 3, 26
 
 - Objetivo: sistema de emissão de notas fiscais em microsserviços.
 - Backend em Go; frontend em Angular (posterior ao backend).
@@ -17,7 +17,7 @@ Divisão lógica da SDD (`sdd_teste.md`) em módulos coesos para orientar a impl
 
 ## Parte 2 — Modelagem de Domínio
 
-**Referência SDD:** §4, §10
+**Referência SDD:** 4, 10
 
 - Estoque: `Produto` (1:N) `MovimentoEstoque`.
 - Faturamento: `NotaFiscal` (1:N) `NotaFiscalItem` e (1:N) `NotaFiscalEvento`.
@@ -26,7 +26,7 @@ Divisão lógica da SDD (`sdd_teste.md`) em módulos coesos para orientar a impl
 
 ## Parte 3 — Serviço de Estoque
 
-**Referência SDD:** §5, §6, §11
+**Referência SDD:** 5, 6, 11
 
 - `Produto`: id, codigo (único, auto-gerado sequencial `PROD-000001` se não informado), descricao, saldo, timestamps.
   - Relacionamento 1:N com `PrecoProduto` (histórico); `precos []PrecoProduto` e campo virtual `preco_atual` no JSON.
@@ -45,7 +45,7 @@ Divisão lógica da SDD (`sdd_teste.md`) em módulos coesos para orientar a impl
 
 ## Parte 4 — Serviço de Faturamento
 
-**Referência SDD:** §7, §8, §9, §12
+**Referência SDD:** 7, 8, 9, 12
 
 - `Cliente`: id, nome (único), timestamps.
   - FK opcional em `NotaFiscal.cliente_id` (Nota pertence a 0 ou 1 Cliente; Cliente tem 0..N notas).
@@ -67,7 +67,7 @@ Divisão lógica da SDD (`sdd_teste.md`) em módulos coesos para orientar a impl
 
 ## Parte 5 — Fluxos de Negócio
 
-**Referência SDD:** §13, §14
+**Referência SDD:** 13, 14
 
 - Criação: nota nasce `ABERTA` e recebe itens enquanto aberta.
 - Impressão (`POST /notas/:id/imprimir`) — assíncrona (Sprint 7):
@@ -85,7 +85,7 @@ Divisão lógica da SDD (`sdd_teste.md`) em módulos coesos para orientar a impl
 
 ## Parte 6 — Resiliência e Consistência
 
-**Referência SDD:** §15, §16, §17, §18, §19
+**Referência SDD:** 15, 16, 17, 18, 19
 
 - Falha do Estoque: nota permanece `ABERTA`, Faturamento registra o erro, usuário recebe feedback.
 - Mensageria (RabbitMQ): desacopla operações; introduzida após o fluxo HTTP básico.
@@ -124,14 +124,14 @@ Divisão lógica da SDD (`sdd_teste.md`) em módulos coesos para orientar a impl
 
 ## Parte 7 — Padrões de API e Tratamento de Erros
 
-**Referência SDD:** §20
+**Referência SDD:** 20
 
 - 400 (dados inválidos), 404 (não encontrado), 409 (conflito), 422 (regra de negócio), 500 (erro inesperado), 503 (dependente indisponível).
 - Formato de erro único: `{ "error": { "code", "message", "details" } }`.
 
 ## Parte 8 — Arquitetura Interna do Backend
 
-**Referência SDD:** §21, §22
+**Referência SDD:** 21, 22
 
 - Camadas: HTTP → Handler → Service → Repository → Database.
 - `Handler`: recebe HTTP, valida entrada, chama Service, monta resposta.
@@ -143,14 +143,14 @@ Divisão lógica da SDD (`sdd_teste.md`) em módulos coesos para orientar a impl
 
 ## Parte 9 — Estratégia de Desenvolvimento
 
-**Referência SDD:** §23
+**Referência SDD:** 23
 
 - Implementação incremental em fases: Estoque → Faturamento → Integração → Mensageria → Robustez → Infra → Angular.
 - Detalhamento em checklist: ver `docs/planejamento.md`.
 
 ## Parte 10 — Requisitos, Entrega e Critérios
 
-**Referência SDD:** §24, §25
+**Referência SDD:** 24, 25
 
 - Obrigatórios: 2 microsserviços, produto (código/descrição/saldo), nota (numeração, status, múltiplos itens), impressão (indicador, fechamento, bloqueio de nota não aberta, atualização de saldo), persistência real, tratamento de falha entre serviços.
 - Opcionais: concorrência, IA, idempotência.
