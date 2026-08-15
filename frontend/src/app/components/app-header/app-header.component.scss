@@ -44,6 +44,17 @@
   gap: 4px;
 }
 
+.usuario-nome {
+  font-size: 13px;
+  font-weight: 500;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 8px;
+  opacity: 0.95;
+}
+
 @media (max-width: 520px) {
   .barra-inner {
     padding: 0 8px;

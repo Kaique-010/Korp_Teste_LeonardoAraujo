@@ -44,10 +44,51 @@
             <span>{{ item.rotulo }}</span>
           </a>
         }
+        <mat-divider *ngIf="isLoggedIn()"></mat-divider>
+        <a
+          *ngIf="!isLoggedIn()"
+          mat-menu-item
+          routerLink="/login"
+        >
+          <mat-icon>login</mat-icon>
+          <span>Login</span>
+        </a>
+        <button
+          *ngIf="isLoggedIn()"
+          mat-menu-item
+          (click)="logout()"
+        >
+          <mat-icon>logout</mat-icon>
+          <span>Sair</span>
+        </button>
       </mat-menu>
     }
 
     <div class="header-acoes">
+      <ng-container *ngIf="!mobile()">
+        <ng-container *ngIf="isLoggedIn(); else loginBtn">
+          <span class="usuario-nome" matTooltip="Usuário logado">{{ getUserName() }}</span>
+          <button
+            mat-icon-button
+            matTooltip="Sair"
+            aria-label="Fazer logout"
+            (click)="logout()"
+          >
+            <mat-icon>logout</mat-icon>
+          </button>
+        </ng-container>
+        <ng-template #loginBtn>
+          <button
+            mat-button
+            routerLink="/login"
+            matTooltip="Entrar com sua conta"
+            aria-label="Ir para login"
+          >
+            <mat-icon>login</mat-icon>
+            Login
+          </button>
+        </ng-template>
+      </ng-container>
       <app-theme-toggle />
     </div>
   </div>

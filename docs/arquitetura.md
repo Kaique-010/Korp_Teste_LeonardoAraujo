@@ -400,3 +400,158 @@ frontend/src/app
 - **Local:** `npm start` (`ng serve --port 4200`) — aponta para backends `http://localhost:8081` (Estoque) e `http://localhost:8082` (Faturamento) via `environment.ts`.
 - **Produção:** `ng build --configuration=production` (output em `dist/korp-frontend/browser`) + `ASSET_PREFIX` configurável; integração com Nginx ou CDN.
 - **Testes unitários (opcional):** `ng test` (Karma/Jasmine por padrão; substituível por Jest).
+
+---
+
+## Parte 13 — Extra: Microsserviço de Autenticação (Auth) ✅
+
+> **Funcionalidade adicional (fora do escopo original da SDD):** microsserviço `auth`
+> independente em Go + tela de login no Angular, com JWT assinado, cadastro de
+> usuários, hash bcrypt e integração no header com logout. O acesso às páginas
+> do sistema (Home, Produtos, Clientes, Notas) permanece **público** (sem
+> guard/rota bloqueada), mas o mecanismo está completo e pronto para receber
+> `canActivate` guards e `HttpInterceptor` Bearer no futuro.
+
+### 13.1 Backend — `backendGo/services/auth/` (porta 8083)
+
+- **Arquitetura idêntica aos outros serviços:** Handler → Service → Repository → Model.
+- **Banco próprio:** PostgreSQL `auth_db` (container `korp-postgres-auth`; porta host `15434`; volume `pg_auth_data` no `docker-compose.yml`).
+- **Model `Usuario`:** `id BIGSERIAL PK`, `nome VARCHAR(150)`, `email VARCHAR(255) UNIQUE`, `senha_hash TEXT` (bcrypt), `ativo BOOLEAN DEFAULT true`, timestamps.
+- **Hash de senha:** `golang.org/x/crypto/bcrypt` com `DefaultCost` (custo 10). Comparação em `Autenticar` usa `bcrypt.CompareHashAndPassword` (tempo constante).
+
+#### 13.1.1 JWT — `internal/jwt/jwt_service.go` (`github.com/golang-jwt/jwt/v5`)
+
+```go
+type Claims struct {
+    UserID uint   `json:"sub"`   // convenção RFC "subject"
+    Email  string `json:"email"`
+    jwt.RegisteredClaims        // ExpiresAt, IssuedAt, etc.
+}
+```
+
+- `ValidateJWTSecret([]byte) error` — executado no startup do main; falha se segredo vazio ou < 16 chars (evita rodar produção com chave fraca).
+- `Generate(userID uint, email string) (string, error)` — HS256, `IssuedAt = now`, `ExpiresAt = now + JWT_EXPIRATION` (padrão 1h).
+- `Validate(token string) (*Claims, error)` — `ParseWithClaims` com HMAC keyfunc; rejeita métodos não-HMAC (evita ataque `alg: none`).
+
+#### 13.1.2 Config por env (com fallback seguro para dev)
+
+| Variável         | Padrão dev                                          |
+| ---------------- | --------------------------------------------------- |
+| `PORT`           | `8083`                                              |
+| `DB_HOST`        | `localhost`                                         |
+| `DB_PORT`        | `15434`                                             |
+| `DB_NAME`        | `auth_db`                                           |
+| `DB_USER`        | `auth`                                              |
+| `DB_PASSWORD`    | `auth`                                              |
+| `JWT_SECRET`     | `korp-teste-super-secret-key-2026` (≥16 caracteres) |
+| `JWT_EXPIRATION` | `1h` (qualquer `time.ParseDuration`)                |
+
+#### 13.1.3 Rotas públicas
+
+| Método | Rota             | Entrada                   | Saída (200/201)                                                                |
+| ------ | ---------------- | ------------------------- | ------------------------------------------------------------------------------ |
+| GET    | `/health`        | —                         | `{ status:"ok", service:"auth" }`                                              |
+| POST   | `/auth/usuarios` | `{nome, email, senha ≥6}` | `{id, nome, email, ativo}` (201 Created)                                       |
+| POST   | `/auth/login`    | `{email, senha}`          | `{ access_token:"<JWT>", token_type:"Bearer", user:{id,nome,email} }` (200 OK) |
+
+Tratamento de erro no login: `400` (validação), `401` (credenciais / usuário inativo), `500` (interno).
+
+#### 13.1.4 Seed de primeiro usuário (idempotente)
+
+No `main.go`, imediatamente após instanciar `UsuarioService`, roda `usuarioService.CriarSeVazio(...)`:
+
+```go
+const (
+    SeedAdminNome  = "Administrador Korp"
+    SeedAdminEmail = "admin@korp.local"
+    SeedAdminSenha = "korp26"
+)
+```
+
+- Conta quantos usuários existem via `repository.Contar(ctx)`.
+- Se **0**, cria o admin via `Service.Criar` (aplica bcrypt, normaliza email).
+- Se **> 0**, não faz nada (re-start do container não duplica).
+- Log no startup informa o ID e credenciais criadas (apenas informativo para o dev).
+
+> **Usuário padrão do primeiro start:**
+>
+> - Email: **`admin@korp.local`**
+> - Senha: **`korp26`**
+> - Nome: Administrador Korp
+
+### 13.2 Frontend — Autenticação
+
+#### 13.2.1 `AuthService` (`src/app/services/auth.service.ts`)
+
+- `login(email, senha)` → `POST http://localhost:8083/auth/login`. Usa `pipe(tap(...))` para, antes de emitir o resultado, **persistir sessão no `localStorage`**:
+  - chave `korp_token` → JWT bruto (`access_token`).
+  - chave `korp_user` → `JSON.stringify(user)` (`{id,nome,email}`).
+- API pública: `getToken(): string|null`, `getUser(): User|null`, `isLoggedIn(): boolean`, `logout(): void` (limpa ambas chaves).
+
+#### 13.2.2 `LoginComponent` (`src/app/pages/login/`)
+
+- Standalone, template-driven (FormsModule + ngModel), campos `email` e `senha`.
+- Estados: `loading` (botão desabilita e troca texto "Entrando...") e `erroMsg` (exibido em box vermelho acima do botão; recebe `err.error.error` da API ou mensagem padrão).
+- UI: inputs com `:focus` azul (box-shadow 3px rgba), botão azul `#007bff` (hover `#0056b3`; disabled `#6c757d`), erro `.erro` com fundo `#f8d7da` / borda `#f5c6cb`.
+- Sucesso: `router.navigate(['/home'])`.
+
+#### 13.2.3 `AppHeaderComponent` — integração Login/Logout
+
+- **Desktop (≥ 820px):**
+  - Deslogado → botão com `<mat-icon>login</mat-icon> Login` (routerLink `/login`).
+  - Logado → `{{ getUserName() }}` truncado com `text-overflow: ellipsis` + botão `<mat-icon>logout</mat-icon>` que chama `auth.logout()` e navega `/login`.
+- **Mobile (< 820px, menu hambúrguer):**
+  - Mesmos itens dentro do `mat-menu`; antes do item **Sair** há um `<mat-divider>` (MatDividerModule) quando logado.
+- `isLoggedIn()` e `getUserName()` são wrappers do AuthService.
+
+#### 13.2.4 Rotas: Acesso público SEM guard
+
+```ts
+export const routes: Routes = [
+  { path: '', redirectTo: 'home', pathMatch: 'full' },
+  {
+    path: 'login',
+    loadComponent: () =>
+      import('./pages/login/login.component').then((m) => m.LoginComponent),
+  },
+  { path: 'home', loadComponent: () => import('./pages/home/home.component') },
+  { path: 'produtos' /* ... */ },
+  { path: 'clientes' /* ... */ },
+  { path: 'notas' /* ... */ },
+  { path: '**', redirectTo: 'home' },
+]
+```
+
+- **Nenhum `canActivate`** configurado — páginas são **100% públicas** como solicitado.
+- Login/logout serve apenas para demonstrar o fluxo completo e armazenar o token no `localStorage`, pronto para quando quiser ativar:
+  - `AuthInterceptor` (HTTP) → `req.clone({ setHeaders: { Authorization: `Bearer ${auth.getToken()}` } })`.
+  - `AuthGuard` (rotas privadas) → `canActivate(): boolean { return auth.isLoggedIn() || router.parseUrl('/login') }`.
+
+### 13.3 Estrutura de pastas atualizada com o serviço auth
+
+```text
+Korp_Teste_LeonardoAraujo/
+├── backendGo/
+│   └── services/
+│       ├── estoque/     (8081)
+│       ├── faturamento/ (8082)
+│       └── auth/        (8083) ← extra (novo)
+│           ├── cmd/main.go           ← seed admin + CORS para localhost:4200
+│           ├── internal/
+│           │   ├── config/config.go  ← PORT/DB_*/JWT_* com fallback
+│           │   ├── database/database.go + migrations.go
+│           │   ├── jwt/jwt_service.go ← Generate/Validate/ValidateJWTSecret
+│           │   ├── handlers/usuario_handler.go  ← POST /auth/usuarios + /login
+│           │   ├── services/usuario_service.go  ← Criar/Autenticar/CriarSeVazio
+│           │   ├── repositories/usuario_repository.go (interface: +Contar)
+│           │   ├── models/usuario.go
+│           │   └── routes/routes.go   ← router.Group("/auth")
+│           ├── migrations/
+│           │   ├── 0001_create_usuarios.up.sql
+│           │   └── 0001_create_usuarios.down.sql
+│           └── go.mod  (module korp-teste/auth)
+└── frontend/
+    └── src/app/
+        ├── services/auth.service.ts   ← localStorage + integração
+        └── pages/login/               ← login.component.{ts,html,scss}
+```

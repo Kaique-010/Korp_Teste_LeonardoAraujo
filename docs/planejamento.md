@@ -255,3 +255,80 @@ Antes da entrega, confirmar:
 - [ ] Impressão com indicador de processamento, fechamento da nota, bloqueio de nota não aberta e atualização do saldo
 - [ ] Persistência real (PostgreSQL)
 - [ ] Tratamento de falha entre microsserviços demonstrado
+
+---
+
+## Sprint Extra — Autenticação (Auth) ✅
+
+> **Extra fora do escopo da SDD**: microsserviço de autenticação JWT independente
+> com cadastro/login de usuários, tela de login no Angular e integração
+> no header. Acesso geral (home, páginas) permanece SEM bloqueio por login
+> (acesso público), mas o mecanismo está pronto para uso futuro.
+
+### Backend Go — serviço `auth` (porta 8083)
+
+- [x] Banco próprio: PostgreSQL `auth_db` (container `korp-postgres-auth`, porta `15434:5432`)
+- [x] Volume declarado no `docker-compose.yml`: `pg_auth_data`
+- [x] Model `Usuario` (`id`, `nome`, `email` UNIQUE, `senha_hash` bcrypt, `ativo`)
+- [x] Migration `0001_create_usuarios.up.sql` (tabela + índice)
+- [x] Repository pattern com interface: `Criar`, `BuscarPorEmail`, `BuscarPorID`, `Atualizar`, `Contar`
+- [x] Service:
+  - [x] `Criar()` — valida email/senha obrigatórios, gera hash bcrypt (`golang.org/x/crypto/bcrypt`)
+  - [x] `Autenticar()` — busca por email, verifica ativo, compara hash bcrypt
+  - [x] `CriarSeVazio()` — idempotente: só insere se tabela vazia (usado no seed)
+  - [x] Erros tipados: `ErrEmailObrigatorio`, `ErrSenhaObrigatoria`, `ErrUsuarioInativo`, `ErrCredencialInvalida`
+- [x] JWT (`github.com/golang-jwt/jwt/v5`):
+  - [x] `JWTService` (segredo + duração configuráveis por env)
+  - [x] `ValidateJWTSecret()` — valida segredo ≥ 16 caracteres antes de iniciar
+  - [x] `Generate(userID, email)` → claims `{sub, email}`, HS256, `IssuedAt` + `ExpiresAt` (padrão 1h)
+  - [x] `Validate(tokenString)` → parse com HMAC, retorna `Claims` preenchidos ou erro
+- [x] Handlers (`UsuarioHandler`):
+  - [x] `POST /auth/usuarios` — cadastro (`nome`, `email`, `senha` ≥ 6)
+  - [x] `POST /auth/login` → `{ access_token, token_type: "Bearer", user: {id,nome,email} }`
+  - [x] Tratamento de erro: `400` (dados inválidos), `401` (creds/usuário inativo), `500` (interno)
+- [x] Config (por env com fallback):
+  - [x] `PORT=8083`, `DB_HOST=localhost`, `DB_PORT=15434`, `DB_NAME=auth_db`, `DB_USER=auth`, `DB_PASSWORD=auth`
+  - [x] `JWT_SECRET="korp-teste-super-secret-key-2026"` (fallback; ≥ 16 chars)
+  - [x] `JWT_EXPIRATION=1h` (suporta `15m`, `24h`, etc via `time.ParseDuration`)
+- [x] CORS liberado para `http://localhost:4200` (methods: GET/POST/PUT/DELETE/OPTIONS; headers: Authorization)
+- [x] **Seed automático no startup**: se a tabela `usuarios` estiver vazia, cria o admin padrão:
+  - **Email**: `admin@korp.local`
+  - **Senha**: `korp26`
+  - **Nome**: `Administrador Korp`
+  - Log impresso no startup com id/credenciais.
+- [x] Rotas finais:
+  - `GET  /health` — health check
+  - `POST /auth/usuarios` — criar usuário
+  - `POST /auth/login` — login → JWT
+
+### Frontend Angular — Autenticação
+
+- [x] `AuthService` (`src/app/services/auth.service.ts`):
+  - [x] `login(email, senha)` → POST `http://localhost:8083/auth/login`
+  - [x] Após sucesso: salva `korp_token` (JWT) e `korp_user` no `localStorage`
+  - [x] Helpers públicos: `getToken()`, `getUser()`, `isLoggedIn()`, `logout()`
+- [x] `LoginComponent` (`src/app/pages/login/`):
+  - [x] Formulário template-driven com `ngModel` (email + senha)
+  - [x] Estados `loading` (botão desabilita) e `erroMsg` (exibe msg em box vermelho)
+  - [x] UI responsiva: inputs com foco azul, botão azul (`#007bff`), hover e disabled
+  - [x] Sucesso → `router.navigate(['/home'])`
+  - [x] Erro → exibe `err.error.error` ou mensagem padrão
+- [x] `AppHeaderComponent` (header público):
+  - [x] **Desktop**: mostra botão "Login" (ícone + texto) quando deslogado; quando logado: `{nome_usuario}` + botão ícone `logout`
+  - [x] **Mobile** (menu hambúrguer): item "Login" quando deslogado; separador + item "Sair" quando logado
+  - [x] Clique em Sair → `auth.logout()` + rota `/login`
+  - [x] `MatDividerModule` importado para separador do menu mobile
+- [x] **Acesso público (sem guard)**:
+  - [x] Rota raiz `""` redireciona → `/home` (não bloqueia)
+  - [x] Rota curinga `"**"` também cai em `/home`
+  - [x] Todas as páginas (home, produtos, clientes, notas) acessíveis sem token
+  - [x] Mecanismo de auth está **pronto** para receber `canActivate` guards e `HttpInterceptor` Bearer futuramente.
+
+### Usuário padrão (seed do primeiro start)
+
+| Campo  | Valor              |
+| ------ | ------------------ |
+| Nome   | Administrador Korp |
+| Email  | admin@korp.local   |
+| Senha  | `korp26`           |
+| Ativo? | Sim                |

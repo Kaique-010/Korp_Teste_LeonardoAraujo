@@ -9,11 +9,11 @@ services:
       POSTGRES_PASSWORD: estoque
       POSTGRES_DB: estoque_db
     ports:
-      - "15432:5432"
+      - '15432:5432'
     volumes:
       - pg_estoque_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U estoque -d estoque_db"]
+      test: ['CMD-SHELL', 'pg_isready -U estoque -d estoque_db']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -26,11 +26,28 @@ services:
       POSTGRES_PASSWORD: faturamento
       POSTGRES_DB: faturamento_db
     ports:
-      - "15433:5432"
+      - '15433:5432'
     volumes:
       - pg_faturamento_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U faturamento -d faturamento_db"]
+      test: ['CMD-SHELL', 'pg_isready -U faturamento -d faturamento_db']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres-auth:
+    image: postgres:16-alpine
+    container_name: korp-postgres-auth
+    environment:
+      POSTGRES_USER: auth
+      POSTGRES_PASSWORD: auth
+      POSTGRES_DB: auth_db
+    ports:
+      - '15434:5432'
+    volumes:
+      - pg_auth_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U auth -d auth_db']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -42,10 +59,10 @@ services:
       RABBITMQ_DEFAULT_USER: korp
       RABBITMQ_DEFAULT_PASS: korp
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - '5672:5672'
+      - '15672:15672'
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -53,3 +70,4 @@ services:
 volumes:
   pg_estoque_data:
   pg_faturamento_data:
+  pg_auth_data:
